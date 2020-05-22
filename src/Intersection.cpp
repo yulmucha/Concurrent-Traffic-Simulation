@@ -25,7 +25,12 @@ void WaitingVehicles::permitEntryToFirstInQueue()
 {
     // L2.3 : First, get the entries from the front of _promises and _vehicles. 
     // Then, fulfill promise and send signal back that permission to enter has been granted.
-    // Finally, remove the front elements from both queues. 
+    // Finally, remove the front elements from both queues.
+    auto frontVehicle = _vehicles.begin();
+    auto frontPromise = _promises.begin();
+    frontPromise->set_value();
+    _vehicles.erase(frontVehicle);
+    _promises.erase(frontPromise);
 }
 
 /* Implementation of class "Intersection" */
@@ -62,7 +67,11 @@ void Intersection::addVehicleToQueue(std::shared_ptr<Vehicle> vehicle)
     std::cout << "Intersection #" << _id << "::addVehicleToQueue: thread id = " << std::this_thread::get_id() << std::endl;
 
     // L2.2 : First, add the new vehicle to the waiting line by creating a promise, a corresponding future and then adding both to _waitingVehicles. 
-    // Then, wait until the vehicle has been granted entry. 
+    // Then, wait until the vehicle has been granted entry.
+    std::promise<void> prms;
+    std::future<void> ftr = prms.get_future();
+    _waitingVehicles.pushBack(vehicle, std::move(prms));
+    ftr.wait();
 
     std::cout << "Intersection #" << _id << ": Vehicle #" << vehicle->getID() << " is granted entry." << std::endl;
 }
@@ -85,7 +94,7 @@ void Intersection::setIsBlocked(bool isBlocked)
 void Intersection::simulate() // using threads + promises/futures + exceptions
 {
     // launch vehicle queue processing in a thread
-    threads.emplace_back(std::thread(&Intersection::processVehicleQueue, this));
+    _threads.emplace_back(std::thread(&Intersection::processVehicleQueue, this));
 }
 
 void Intersection::processVehicleQueue()
